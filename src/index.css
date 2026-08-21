@@ -54,6 +54,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-border);
 }
 
@@ -306,6 +309,8 @@ body {
 .modal-content {
   width: 90%;
   max-width: 950px;
+  max-height: 90vh;
+  overflow-y: auto;
   border-radius: 1.5rem;
   padding: 2rem;
   position: relative;
@@ -634,4 +639,37 @@ body {
   width: 80px;
   height: 22px;
   border-radius: 12px;
+}
+
+/* Additional Mobile Layout Fixes */
+@media (max-width: 768px) {
+  .header {
+    padding: 0.8rem 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .header-title {
+    font-size: 1.3rem;
+  }
+  .main-content {
+    padding: 1rem;
+  }
+  .stat-card {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  .modal-content {
+    width: 95%;
+    padding: 1.2rem;
+  }
+  .modal-body {
+    flex-direction: column;
+  }
+  .modal-radar {
+    flex: none;
+    height: 300px;
+  }
 }
