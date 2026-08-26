@@ -239,6 +239,28 @@ body {
   background: linear-gradient(to top, var(--bg-color), transparent);
 }
 
+.status-dot-wrapper {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-color); /* Cutout effect, matching background */
+  z-index: 20;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  transition: transform 0.2s;
+}
+
+.employee-card:hover .status-dot-wrapper {
+  border-color: #151f32; /* Slightly match hover state if needed, or leave it */
+}
+
+.status-dot-wrapper:hover {
+  transform: scale(1.2);
+}
+
+
 .card-content {
   padding: 1.5rem;
   position: relative;
@@ -266,7 +288,32 @@ body {
   border-radius: 1rem;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.employee-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.employee-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.employee-status span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
 }
 
 .employee-contact {
@@ -529,6 +576,15 @@ body {
     display: none;
   }
   
+  .status-dot-wrapper {
+    bottom: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+    border-color: var(--card-bg); /* Match the card background on mobile */
+  }
+  
   .card-content {
     margin-top: 0;
     padding: 0 0 0 1rem;
@@ -548,11 +604,13 @@ body {
     margin-bottom: 0.5rem;
   }
 
-  .employee-dept {
+  .employee-badges {
     margin-bottom: 0;
+  }
+
+  .employee-dept, .employee-status {
     font-size: 0.75rem;
     padding: 0.2rem 0.6rem;
-    align-self: flex-start;
   }
 }
 

@@ -8,7 +8,7 @@ import './index.css';
 const SPREADSHEET_ID = '1x9Hq0pM_Lmif8x-4CNX7YgVS-S9Y8uotii_00erLVA8';
 
 // Helper component for loading local images with fallbacks
-const EmployeeImage = ({ id, name, className, style }: { id: string, name: string, className?: string, style?: any }) => {
+const EmployeeImage = ({ id, name, className, style, grayscale }: { id: string, name: string, className?: string, style?: any, grayscale?: boolean }) => {
   const [src, setSrc] = useState(`/assets/employees/${id}.png`);
   
   const handleError = () => {
@@ -21,7 +21,12 @@ const EmployeeImage = ({ id, name, className, style }: { id: string, name: strin
     }
   };
 
-  return <img src={src} alt={name} className={className} style={style} onError={handleError} />;
+  const finalStyle = {
+    ...style,
+    filter: grayscale ? 'grayscale(100%) opacity(0.8)' : 'none',
+  };
+
+  return <img src={src} alt={name} className={className} style={finalStyle} onError={handleError} />;
 };
 
 const SkeletonCard = () => (
@@ -142,6 +147,37 @@ function App() {
       }
     });
     return details.sort((a, b) => parseFloat(b.leaveDays.toString().replace(',', '.')) - parseFloat(a.leaveDays.toString().replace(',', '.')));
+  };
+
+  const getEmployeeTodayStatus = (empId: string) => {
+    const ts = timesheetData[empId];
+    if (!ts) return null;
+    
+    // For a real app, you would use new Date().getDate() - 1, 
+    // but since we only have timesheet_08.csv right now, let's just use the current system date's day index
+    // if the system month is 08. Otherwise, default to the last day of the month or a random day for demo.
+    const currentDate = new Date();
+    // In our specific case, the user uploaded 08 data, so let's check today's date if it's month 8.
+    // If not, we will just use day 25 (index 24) as a fallback for the demo to always show some data.
+    let dayIndex = currentDate.getDate() - 1;
+    if (currentDate.getMonth() + 1 !== 8) {
+      dayIndex = 24; // Fallback to 25th of August for demo purposes if we are not in August
+    }
+    
+    if (dayIndex >= 0 && dayIndex < ts.days.length) {
+       return ts.days[dayIndex];
+    }
+    return null;
+  };
+
+  const getStatusProps = (status: string | null) => {
+    if (!status || status.trim() === '') return { color: '#94a3b8', label: 'Chưa cập nhật' };
+    const s = status.toLowerCase();
+    if (s.includes('đủ ca') || s.includes('nửa ngày')) return { color: '#22c55e', label: 'Đang làm việc' };
+    if (s.includes('nghỉ phép')) return { color: '#facc15', label: 'Đang nghỉ phép' };
+    if (s.includes('vắng') || s.includes('nghỉ việc')) return { color: '#ef4444', label: status };
+    if (s.includes('chủ nhật')) return { color: '#475569', label: 'Nghỉ Chủ Nhật' };
+    return { color: '#3b82f6', label: status };
   };
 
   // Fetch Employee Data
@@ -472,13 +508,44 @@ function App() {
                       whileHover={{ translateY: -10, boxShadow: "0 15px 35px rgba(0, 0, 0, 0.5)", borderColor: "var(--primary-color)" }}
                     >
                       <div className="card-image-container">
-                        <EmployeeImage id={emp.id} name={emp.name} className="employee-image" />
+                        <EmployeeImage 
+                          id={emp.id} 
+                          name={emp.name} 
+                          className="employee-image" 
+                          grayscale={getEmployeeTodayStatus(emp.id)?.toLowerCase().includes('nghỉ việc')} 
+                        />
                         <div className="card-image-overlay"></div>
+                        
+                        {(() => {
+                          const rawStatus = getEmployeeTodayStatus(emp.id);
+                          const { color, label } = getStatusProps(rawStatus);
+                          return (
+                            <div 
+                              className="status-dot-wrapper"
+                              title={label}
+                              style={{ backgroundColor: color }}
+                            />
+                          );
+                        })()}
                       </div>
                       <div className="card-content">
                         <h3 className="employee-name">{emp.name}</h3>
                         <div className="employee-role" style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>{emp.role}</div>
-                        <div className="employee-dept">{emp.department}</div>
+                        
+                        <div className="employee-badges">
+                          <div className="employee-dept">{emp.department}</div>
+                          {(() => {
+                            const rawStatus = getEmployeeTodayStatus(emp.id);
+                            const { color, label } = getStatusProps(rawStatus);
+                            return (
+                              <div className="employee-status" style={{ color: color, borderColor: `${color}40` }}>
+                                <span style={{ backgroundColor: color }}></span>
+                                {label}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
                         <div style={{ 
                           fontSize: '0.85rem', 
                           color: 'var(--text-secondary)',
