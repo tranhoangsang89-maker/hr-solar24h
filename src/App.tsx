@@ -8,7 +8,7 @@ import './index.css';
 const SPREADSHEET_ID = '1x9Hq0pM_Lmif8x-4CNX7YgVS-S9Y8uotii_00erLVA8';
 
 // Helper component for loading local images with fallbacks
-const EmployeeImage = ({ id, name, className }: { id: string, name: string, className: string }) => {
+const EmployeeImage = ({ id, name, className, style }: { id: string, name: string, className?: string, style?: any }) => {
   const [src, setSrc] = useState(`/assets/employees/${id}.png`);
   
   const handleError = () => {
@@ -21,7 +21,7 @@ const EmployeeImage = ({ id, name, className }: { id: string, name: string, clas
     }
   };
 
-  return <img src={src} alt={name} className={className} onError={handleError} />;
+  return <img src={src} alt={name} className={className} style={style} onError={handleError} />;
 };
 
 const SkeletonCard = () => (
@@ -89,6 +89,9 @@ function App() {
   const [filterDept, setFilterDept] = useState('All');
   const [selectedEmp, setSelectedEmp] = useState<any>(null);
   const [currentView, setCurrentView] = useState('directory');
+  const [enlargedQR, setEnlargedQR] = useState<string | null>(null);
+  const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
+  const [expandedLeaveId, setExpandedLeaveId] = useState<string | null>(null);
   
   // Month selector state
   const [selectedMonth, setSelectedMonth] = useState('08');
@@ -116,6 +119,30 @@ function App() {
     ];
   };
   const barData = calculateAttendance();
+
+  const getLeaveDetails = () => {
+    const details: any[] = [];
+    allEmployees.forEach(emp => {
+      const ts = timesheetData[emp.id];
+      if (ts && ts.totalLeave && parseFloat(ts.totalLeave.toString().replace(',', '.')) > 0) {
+        const leaveDates: number[] = [];
+        ts.days.forEach((status: string, index: number) => {
+          if (status && status.toLowerCase().includes('nghỉ phép')) {
+            leaveDates.push(index + 1);
+          }
+        });
+        
+        details.push({
+          id: emp.id,
+          name: emp.name,
+          department: emp.department,
+          leaveDays: ts.totalLeave,
+          leaveDates: leaveDates
+        });
+      }
+    });
+    return details.sort((a, b) => parseFloat(b.leaveDays.toString().replace(',', '.')) - parseFloat(a.leaveDays.toString().replace(',', '.')));
+  };
 
   // Fetch Employee Data
   useEffect(() => {
@@ -145,6 +172,8 @@ function App() {
             scoreAttitude: parseFloat(row['Điểm Thái Độ']) || 5,
             scoreSoftSkills: parseFloat(row['Kỹ Năng Mềm']) || 5,
             scoreKPI: parseFloat(row['Hiệu Suất']) || 5,
+            bankName: row['Ngân Hàng'] ? row['Ngân Hàng'].replace(/[^a-zA-Z0-9\s]/g, '').trim() : '',
+            bankAccount: row['Số Tài Khoản'] ? row['Số Tài Khoản'].replace(/[^0-9a-zA-Z]/g, '').trim() : '',
           }));
           setAllEmployees(parsed);
           setEmployees(parsed);
@@ -371,7 +400,17 @@ function App() {
                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                       content={<CustomTooltip />}
                     />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={45}>
+                    <Bar 
+                      dataKey="value" 
+                      radius={[6, 6, 0, 0]} 
+                      barSize={45}
+                      cursor="pointer"
+                      onClick={(data) => {
+                        if (data.name === 'Nghỉ phép (Ngày)') {
+                          setShowLeaveModal(true);
+                        }
+                      }}
+                    >
                       {barData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
@@ -620,6 +659,45 @@ function App() {
                   </div>
                 )}
                 
+                {selectedEmp.bankName && selectedEmp.bankAccount && (
+                  <div style={{
+                    marginTop: '1rem',
+                    marginBottom: '1rem',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem'
+                  }}>
+                    <div 
+                      style={{ 
+                        width: '100px', 
+                        height: '100px', 
+                        background: 'white', 
+                        borderRadius: '8px', 
+                        padding: '4px',
+                        flexShrink: 0,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setEnlargedQR(`https://img.vietqr.io/image/${selectedEmp.bankName}-${selectedEmp.bankAccount}-compact2.png`)}
+                    >
+                      <img 
+                        src={`https://img.vietqr.io/image/${selectedEmp.bankName}-${selectedEmp.bankAccount}-compact2.png`} 
+                        alt="VietQR" 
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--primary-color)', fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.2rem' }}>Thưởng Nóng 🎁</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>{selectedEmp.bankName}</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '1px' }}>{selectedEmp.bankAccount}</div>
+                    </div>
+                  </div>
+                )}
+                
                 <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
                   <button style={{
                     width: '100%',
@@ -690,6 +768,191 @@ function App() {
           )}
         </div>
       </div>
+
+      {/* Enlarged QR Modal */}
+      <AnimatePresence>
+        {enlargedQR && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              zIndex: 100000000000,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backdropFilter: 'blur(8px)',
+              padding: '2rem'
+            }}
+            onClick={() => setEnlargedQR(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+              style={{
+                background: 'white',
+                padding: '20px',
+                borderRadius: '16px',
+                maxWidth: '90vw',
+                maxHeight: '90vh'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={enlargedQR} 
+                alt="Enlarged VietQR" 
+                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
+              />
+              <div style={{ textAlign: 'center', marginTop: '16px', color: '#1e293b', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                Thưởng Nóng cho {selectedEmp?.name} 🎁
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Leave Details Modal */}
+      <AnimatePresence>
+        {showLeaveModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              zIndex: 100000000000,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backdropFilter: 'blur(4px)',
+              padding: '1rem'
+            }}
+            onClick={() => setShowLeaveModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              style={{
+                background: 'rgba(30, 41, 59, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '24px',
+                borderRadius: '16px',
+                width: '100%',
+                maxWidth: '400px',
+                maxHeight: '80vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Calendar size={20} />
+                  Danh sách Nghỉ phép
+                </h3>
+                <button 
+                  onClick={() => setShowLeaveModal(false)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.5rem', lineHeight: 1 }}
+                >
+                  &times;
+                </button>
+              </div>
+              
+              <div style={{ overflowY: 'auto', paddingRight: '8px', flex: 1, margin: '-8px' }}>
+                <div style={{ padding: '8px' }}>
+                  {getLeaveDetails().length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {getLeaveDetails().map(emp => (
+                        <div key={emp.id} style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          gap: '8px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          padding: '12px',
+                          borderRadius: '8px'
+                        }}>
+                          <div 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => setExpandedLeaveId(expandedLeaveId === emp.id ? null : emp.id)}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#334155' }}>
+                                <EmployeeImage id={emp.id} name={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '0.95rem' }}>{emp.name}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{emp.department}</div>
+                              </div>
+                            </div>
+                            <div style={{ 
+                              background: 'rgba(250, 204, 21, 0.2)', 
+                              color: '#facc15', 
+                              padding: '4px 10px', 
+                              borderRadius: '20px', 
+                              fontWeight: 'bold',
+                              fontSize: '0.9rem',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              {emp.leaveDays} ngày
+                              <ChevronRight size={16} style={{ transform: expandedLeaveId === emp.id ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                            </div>
+                          </div>
+                          
+                          <AnimatePresence>
+                            {expandedLeaveId === emp.id && (
+                              <motion.div 
+                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
+                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                style={{ overflow: 'hidden' }}
+                              >
+                                <div style={{ 
+                                  padding: '10px 12px', 
+                                  background: 'rgba(0,0,0,0.2)', 
+                                  borderRadius: '6px',
+                                  fontSize: '0.85rem',
+                                  color: 'var(--text-secondary)',
+                                  borderLeft: '2px solid #facc15'
+                                }}>
+                                  {emp.leaveDates && emp.leaveDates.length > 0 ? (
+                                    <>Đã nghỉ vào các ngày: <strong style={{ color: 'var(--text-primary)' }}>{emp.leaveDates.map((d: number) => `${d}/${selectedMonth}`).join(', ')}</strong></>
+                                  ) : (
+                                    <>Chưa có chi tiết ngày nghỉ cụ thể trong bảng chấm công.</>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem 0' }}>
+                      Không có nhân sự nào nghỉ phép trong tháng này.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
