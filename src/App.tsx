@@ -748,10 +748,10 @@ function App() {
                         flexShrink: 0,
                         cursor: 'pointer'
                       }}
-                      onClick={() => setEnlargedQR(`https://img.vietqr.io/image/${selectedEmp.bankName}-${selectedEmp.bankAccount}-compact2.png`)}
+                      onClick={() => setEnlargedQR(`https://img.vietqr.io/image/${selectedEmp.bankName.replace(/\s+/g, '')}-${selectedEmp.bankAccount}-compact2.png`)}
                     >
                       <img 
-                        src={`https://img.vietqr.io/image/${selectedEmp.bankName}-${selectedEmp.bankAccount}-compact2.png`} 
+                        src={`https://img.vietqr.io/image/${selectedEmp.bankName.replace(/\s+/g, '')}-${selectedEmp.bankAccount}-compact2.png`} 
                         alt="VietQR" 
                         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
