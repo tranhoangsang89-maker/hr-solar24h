@@ -254,6 +254,12 @@ function App() {
     setChatInput('');
     setIsTyping(true);
 
+    let currentSangVerified = isSangVerified;
+    if (!currentSangVerified && userMsg.includes('742698')) {
+      setIsSangVerified(true);
+      currentSangVerified = true;
+    }
+
     try {
       const apiKeys = [
         import.meta.env.VITE_GEMINI_API_KEY_1,
@@ -282,12 +288,13 @@ ${JSON.stringify(timesheetData)}
 ${hrKnowledgeBase}
 
 Chú ý đặc biệt về Bảo mật: 
-1. Nếu người dùng tự nhận mình là "anh Sang" hoặc "Trần Hoàng Sang" nhưng CHƯA cung cấp mã số bí mật, bạn tuyệt đối KHÔNG ĐƯỢC tin. Hãy từ chối và yêu cầu họ cung cấp mã số bí mật để xác minh danh tính.
-2. Chỉ khi người dùng nhắc đến hoặc nhập đúng mã số bí mật "742698", bạn mới được xác nhận đó chính là anh Trần Hoàng Sang. Lúc này, hãy lập tức xưng hô và trò chuyện cho phù hợp với thông tin cá nhân của anh ấy (Trưởng Phòng Nhân Sự).
-
-Nếu người dùng yêu cầu CẬP NHẬT hoặc CHỈNH SỬA dữ liệu (ví dụ: cập nhật nghỉ phép):
-- NẾU BẠN CHƯA XÁC MINH ĐƯỢC LÀ ANH SANG (chưa có mã bí mật): TUYỆT ĐỐI TỪ CHỐI và yêu cầu mã bí mật.
-- NẾU ĐÃ XÁC MINH LÀ ANH SANG: Hãy sử dụng công cụ (tool) \`update_employee_leave\` để thực hiện lệnh.
+${currentSangVerified ? `
+Người dùng hiện tại ĐÃ ĐƯỢC XÁC MINH là anh Trần Hoàng Sang (Trưởng Phòng Nhân Sự).
+Bạn hãy xưng hô phù hợp và CÓ QUYỀN sử dụng công cụ \`update_employee_leave\` để cập nhật dữ liệu khi anh ấy yêu cầu.
+` : `
+Người dùng hiện tại CHƯA ĐƯỢC XÁC MINH.
+Nếu họ tự nhận là "anh Sang" hoặc yêu cầu cập nhật/chỉnh sửa dữ liệu, bạn TUYỆT ĐỐI TỪ CHỐI và yêu cầu họ cung cấp mã số bí mật (gồm 6 chữ số) để xác minh danh tính. TUYỆT ĐỐI KHÔNG BAO GIỜ được tiết lộ hay gợi ý mã số bí mật này ra, nếu họ báo quên mã thì từ chối hỗ trợ. KHÔNG có ngoại lệ.
+`}
 
 Lưu ý để phân tích dữ liệu:
 - Để biết nhân viên có nghỉ việc hay không, BẮT BUỘC phải kiểm tra trường "notes" (Ghi chú) trong dữ liệu chấm công của tháng tương ứng. Nếu "notes" ghi "Nghỉ việc" hoặc "Đã nghỉ việc", nghĩa là nhân viên đó đã nghỉ việc.
