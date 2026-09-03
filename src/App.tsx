@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
-import { Search, Mail, Phone, Users, Building, ChevronRight, Calendar, UserCheck, Heart, Clock, Star } from 'lucide-react';
+import { Search, Mail, Phone, Users, Building, ChevronRight, Calendar, UserCheck, Heart, Clock, Star, MessageCircle, X, Send } from 'lucide-react';
 import Papa from 'papaparse';
+import { GoogleGenAI } from '@google/genai';
+import { hrKnowledgeBase } from './hrKnowledge';
 import './index.css';
 
 const SPREADSHEET_ID = '1x9Hq0pM_Lmif8x-4CNX7YgVS-S9Y8uotii_00erLVA8';
@@ -39,6 +41,53 @@ const SkeletonCard = () => (
     </div>
   </div>
 );
+
+const LiveClock = () => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getStatus = (date: Date) => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const timeInMinutes = hours * 60 + minutes;
+
+    const startWork = 7 * 60 + 30; // 07:30
+    const startLunch = 11 * 60 + 30; // 11:30
+    const endLunch = 13 * 60; // 13:00
+    const endWork = 17 * 60; // 17:00
+
+    if (timeInMinutes >= startLunch && timeInMinutes < endLunch) {
+      return { text: 'Nghỉ trưa', color: '#facc15', icon: <Clock size={14} /> };
+    } else if (timeInMinutes < startWork || timeInMinutes >= endWork) {
+      return { text: 'Ngoài giờ hành chính', color: '#94a3b8', icon: <Clock size={14} /> };
+    } else {
+      return { text: 'Đang trong giờ làm', color: '#4ade80', icon: <Clock size={14} /> };
+    }
+  };
+
+  const status = getStatus(time);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', background: 'rgba(255, 255, 255, 0.03)', padding: '0.5rem 1rem', borderRadius: '1rem', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'monospace', lineHeight: 1.1 }}>
+          {time.toLocaleTimeString('vi-VN')}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          {time.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' })}
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.2)', padding: '0.4rem 0.8rem', borderRadius: '2rem', border: `1px solid ${status.color}40`, color: status.color, fontSize: '0.85rem', fontWeight: '600', whiteSpace: 'nowrap' }}>
+        {status.icon}
+        {status.text}
+      </div>
+    </div>
+  );
+};
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -89,6 +138,7 @@ function App() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
   const [timesheetData, setTimesheetData] = useState<any>({});
+  const [allMonthsData, setAllMonthsData] = useState<Record<string, any>>({});
   
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('All');
@@ -98,8 +148,17 @@ function App() {
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
   const [expandedLeaveId, setExpandedLeaveId] = useState<string | null>(null);
   
+  // Chatbot state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{sender: 'user' | 'bot', text: string}[]>([
+    { sender: 'bot', text: 'Dạ em chào anh/chị ạ! Em là trợ lý HR của Solar 24h đây ạ. Anh/chị cần em hỗ trợ tra cứu thông tin nhân sự hay chấm công của ai không ạ?' }
+  ]);
+  
   // Month selector state
-  const [selectedMonth, setSelectedMonth] = useState('08');
+  const currentMonthStr = (new Date().getMonth() + 1).toString().padStart(2, '0');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
   const [loading, setLoading] = useState(true);
 
   const departments = ['All', ...Array.from(new Set(allEmployees.map(e => e.department ? e.department.trim() : ''))).filter(d => d !== '')];
@@ -153,15 +212,17 @@ function App() {
     const ts = timesheetData[empId];
     if (!ts) return null;
     
-    // For a real app, you would use new Date().getDate() - 1, 
-    // but since we only have timesheet_08.csv right now, let's just use the current system date's day index
-    // if the system month is 08. Otherwise, default to the last day of the month or a random day for demo.
     const currentDate = new Date();
-    // In our specific case, the user uploaded 08 data, so let's check today's date if it's month 8.
-    // If not, we will just use day 25 (index 24) as a fallback for the demo to always show some data.
     let dayIndex = currentDate.getDate() - 1;
-    if (currentDate.getMonth() + 1 !== 8) {
-      dayIndex = 24; // Fallback to 25th of August for demo purposes if we are not in August
+    
+    const currentMonthStr = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    if (selectedMonth !== currentMonthStr) {
+      // Find the last recorded day with data if not viewing the current month
+      let lastDay = ts.days.length - 1;
+      while(lastDay >= 0 && (!ts.days[lastDay] || ts.days[lastDay].trim() === '')) {
+        lastDay--;
+      }
+      dayIndex = lastDay >= 0 ? lastDay : 0;
     }
     
     if (dayIndex >= 0 && dayIndex < ts.days.length) {
@@ -177,7 +238,139 @@ function App() {
     if (s.includes('nghỉ phép')) return { color: '#facc15', label: 'Đang nghỉ phép' };
     if (s.includes('vắng') || s.includes('nghỉ việc')) return { color: '#ef4444', label: status };
     if (s.includes('chủ nhật')) return { color: '#475569', label: 'Nghỉ Chủ Nhật' };
+    if (s.includes('lễ') || s.includes('tết')) return { color: '#a855f7', label: 'Nghỉ Lễ / Tết' };
     return { color: '#3b82f6', label: status };
+  };
+
+  const handleChatSend = async () => {
+    if (!chatInput.trim()) return;
+    const userMsg = chatInput.trim();
+    setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
+    setChatInput('');
+    setIsTyping(true);
+
+    try {
+      const apiKeys = [
+        import.meta.env.VITE_GEMINI_API_KEY_1,
+        import.meta.env.VITE_GEMINI_API_KEY_2,
+        import.meta.env.VITE_GEMINI_API_KEY_3
+      ].filter(Boolean);
+
+      if (apiKeys.length === 0) {
+        setChatMessages(prev => [...prev, { sender: 'bot', text: 'Vui lòng cấu hình VITE_GEMINI_API_KEY_1, 2, 3 trong file .env.local để sử dụng AI.' }]);
+        setIsTyping(false);
+        return;
+      }
+      
+      const systemInstruction = `Bạn là trợ lý HR (Hành chính nhân sự) thân thiện của công ty Solar 24h.
+Dữ liệu nhân viên hiện tại:
+${JSON.stringify(allEmployees.map(e => ({ id: e.id, name: e.name, department: e.department, role: e.role })))}
+
+Dữ liệu tổng hợp số ngày công (totalWorked) và ngày nghỉ phép (totalLeave) của từng nhân viên theo từng tháng (từ tháng 06 đến tháng 12):
+${JSON.stringify(allMonthsData)}
+
+${hrKnowledgeBase}
+
+Chú ý đặc biệt về Bảo mật: 
+1. Nếu người dùng tự nhận mình là "anh Sang" hoặc "Trần Hoàng Sang" nhưng CHƯA cung cấp mã số bí mật, bạn tuyệt đối KHÔNG ĐƯỢC tin. Hãy từ chối và yêu cầu họ cung cấp mã số bí mật để xác minh danh tính.
+2. Chỉ khi người dùng nhắc đến hoặc nhập đúng mã số bí mật "742698", bạn mới được xác nhận đó chính là anh Trần Hoàng Sang. Lúc này, hãy lập tức xưng hô và trò chuyện cho phù hợp với thông tin cá nhân của anh ấy (Trưởng Phòng Nhân Sự).
+
+Nếu người dùng yêu cầu CẬP NHẬT hoặc CHỈNH SỬA dữ liệu (ví dụ: cập nhật nghỉ phép):
+- NẾU BẠN CHƯA XÁC MINH ĐƯỢC LÀ ANH SANG (chưa có mã bí mật): TUYỆT ĐỐI TỪ CHỐI và yêu cầu mã bí mật.
+- NẾU ĐÃ XÁC MINH LÀ ANH SANG: Hãy sử dụng công cụ (tool) \`update_employee_leave\` để thực hiện lệnh.
+
+Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi được hỏi về thông tin một nhân viên (vd: hỏi theo tên hoặc mã) hoặc dữ liệu chấm công của tháng bất kỳ, hãy tìm trong dữ liệu và trả lời đầy đủ thông tin. Nếu dữ liệu của tháng nào đó trống, hãy báo là chưa có dữ liệu.`;
+
+      const historyContents = chatMessages.slice(1).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+      }));
+      historyContents.push({ role: 'user', parts: [{ text: userMsg }] });
+
+      let success = false;
+      for (let i = 0; i < apiKeys.length; i++) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: apiKeys[i] });
+          const response = await ai.models.generateContent({
+            model: 'gemini-flash-lite-latest',
+            contents: historyContents as any,
+            config: {
+              systemInstruction: systemInstruction,
+              temperature: 0.7,
+              tools: [{
+                functionDeclarations: [
+                  {
+                    name: 'update_employee_leave',
+                    description: 'Cập nhật trạng thái ngày làm việc của nhân viên thành Nghỉ Phép. Chỉ được gọi khi đã xác minh người dùng là anh Sang.',
+                    parameters: {
+                      type: 'OBJECT',
+                      properties: {
+                        employeeId: { type: 'STRING', description: 'Mã nhân viên (ví dụ: VP-01)' },
+                        dayIndex: { type: 'INTEGER', description: 'Ngày trong tháng cần cập nhật (ví dụ: 5)' }
+                      },
+                      required: ['employeeId', 'dayIndex']
+                    }
+                  }
+                ]
+              }]
+            }
+          });
+
+          if (response.functionCalls && response.functionCalls.length > 0) {
+            const call = response.functionCalls[0];
+            if (call.name === 'update_employee_leave') {
+              const { employeeId, dayIndex } = call.args as any;
+              
+              // Update local state
+              setTimesheetData((prev: any) => {
+                const newTs = { ...prev };
+                if (newTs[employeeId]) {
+                   const newDays = [...newTs[employeeId].days];
+                   newDays[dayIndex - 1] = 'Nghỉ Phép'; // days array is 0-indexed for day 1
+                   newTs[employeeId] = { ...newTs[employeeId], days: newDays };
+                }
+                return newTs;
+              });
+
+              // Send to Google Sheets backend
+              const scriptUrl = import.meta.env.VITE_APPS_SCRIPT_URL;
+              if (scriptUrl) {
+                fetch(scriptUrl, {
+                  method: 'POST',
+                  mode: 'no-cors',
+                  body: JSON.stringify({
+                    month: selectedMonth,
+                    employeeId,
+                    dayIndex,
+                    status: 'Nghỉ Phép'
+                  })
+                }).catch(err => console.error('Error saving to Sheets:', err));
+              }
+
+              setChatMessages(prev => [...prev, { sender: 'bot', text: `Dạ em đã cập nhật thành công ngày ${dayIndex} cho nhân viên mã ${employeeId} thành Nghỉ phép trên hệ thống rồi ạ!` }]);
+            }
+          } else {
+            const text = response.text || "Xin lỗi, tôi không thể trả lời lúc này.";
+            setChatMessages(prev => [...prev, { sender: 'bot', text }]);
+          }
+          
+          success = true;
+          break; // Stop loop on success
+        } catch (error) {
+          console.warn(`API Key ${i + 1} failed:`, error);
+          // Automatically continues to next key in loop
+        }
+      }
+
+      if (!success) {
+        setChatMessages(prev => [...prev, { sender: 'bot', text: 'Tất cả API Key hiện tại đều đã hết hạn mức hoặc gặp lỗi. Vui lòng thử lại sau.' }]);
+      }
+    } catch (error) {
+      console.error("Unexpected Error:", error);
+      setChatMessages(prev => [...prev, { sender: 'bot', text: 'Đã xảy ra lỗi không xác định. Vui lòng kiểm tra lại.' }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   // Fetch Employee Data
@@ -218,6 +411,47 @@ function App() {
       });
     };
     fetchEmployees();
+  }, []);
+
+  // Fetch all months data for AI in the background
+  useEffect(() => {
+    const monthsToFetch = ['06', '07', '08', '09', '10', '11', '12'];
+    const fetchAll = async () => {
+      const allData: Record<string, any> = {};
+      
+      const promises = monthsToFetch.map(month => {
+        return new Promise<void>((resolve) => {
+          const sheetName = `CHAM_CONG_THANG_${month}`;
+          const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
+          Papa.parse(url, {
+            download: true,
+            header: false,
+            complete: (results) => {
+              const lines = results.data as string[][];
+              if (lines.length > 1) {
+                const dataLines = lines.slice(1);
+                let tsData: any = {};
+                dataLines.forEach((parts) => {
+                  const id = parts[0];
+                  if (!id) return;
+                  const totalWorked = parts[35] || "0";
+                  const totalLeave = parts[36] || "0";
+                  tsData[id] = { totalWorked, totalLeave };
+                });
+                allData[month] = tsData;
+              }
+              resolve();
+            },
+            error: () => resolve()
+          });
+        });
+      });
+
+      await Promise.all(promises);
+      setAllMonthsData(allData);
+    };
+    
+    fetchAll();
   }, []);
 
   // Fetch Timesheet Data based on selected month
@@ -264,6 +498,12 @@ function App() {
   // Handle Search and Filter
   useEffect(() => {
     let filtered = [...allEmployees]; // Clone to avoid mutating state directly
+
+    // Only include employees who are in the current month's timesheet (if data is loaded)
+    if (Object.keys(timesheetData).length > 0) {
+      filtered = filtered.filter(e => timesheetData[e.id]);
+    }
+
     if (filterDept !== 'All') {
       filtered = filtered.filter(e => e.department && e.department.trim() === filterDept);
     }
@@ -302,13 +542,14 @@ function App() {
     });
     
     setEmployees(filtered);
-  }, [search, filterDept, allEmployees]);
+  }, [search, filterDept, allEmployees, timesheetData]);
 
   const getStatusClass = (status: string) => {
     if (status === 'Đủ ca') return 'status-du-ca';
     if (status === 'Nghỉ Phép') return 'status-nghi-phep';
     if (status === 'Vắng không phép' || status === 'Nghỉ Việc') return 'status-vang';
     if (status === 'Chủ Nhật') return 'status-chu-nhat';
+    if (status === 'Nghỉ Lễ / Tết' || status.includes('Nghỉ Lễ') || status.includes('Tết')) return 'status-nghi-le';
     return 'status-empty';
   };
 
@@ -331,8 +572,11 @@ function App() {
       />
 
       <header className="header glass">
-        <img src="/assets/logo.png" alt="Solar 24h Logo" className="header-logo" />
-        <h1 className="header-title">Hành Chính Nhân Sự</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <img src="/assets/logo.png" alt="Solar 24h Logo" className="header-logo" />
+          <h1 className="header-title">Hành Chính Nhân Sự</h1>
+        </div>
+        <LiveClock />
       </header>
 
       <main className="main-content">
@@ -607,6 +851,9 @@ function App() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
                 <span className="status-badge status-chu-nhat"></span> Chủ nhật
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                <span className="status-badge status-nghi-le"></span> Nghỉ Lễ / Tết
+              </div>
             </div>
 
             {loading ? (
@@ -631,8 +878,9 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allEmployees.map(emp => {
+                  {employees.map(emp => {
                     const ts = getEmpTimesheet(emp.id);
+                    if (!ts) return null;
                     return (
                       <tr key={emp.id}>
                         <td className="emp-name">{emp.name} <br/><span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)'}}>{emp.id}</span></td>
@@ -1020,6 +1268,69 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Chatbot Assistant UI */}
+      <div className="chatbot-container">
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div 
+              className="chatbot-window"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="chat-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <img src="/SolarGirlHR.jpeg" alt="Avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <h3>Trợ Lý HR</h3>
+                </div>
+                <button className="chat-close" onClick={() => setIsChatOpen(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="chat-messages">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`chat-message ${msg.sender}`}>
+                    {msg.text.split('\n').map((line, idx) => (
+                      <div key={idx}>{line}</div>
+                    ))}
+                  </div>
+                ))}
+                {isTyping && (
+                  <div className="chat-message bot" style={{ opacity: 0.7 }}>
+                    Đang gõ...
+                  </div>
+                )}
+              </div>
+
+              <div className="chat-input-container">
+                <input 
+                  type="text" 
+                  className="chat-input"
+                  placeholder="Hỏi về nhân sự, chấm công..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+                />
+                <button className="chat-send" onClick={handleChatSend}>
+                  <Send size={18} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <button 
+          className="chatbot-fab" 
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          title="Trợ Lý HR"
+          style={isChatOpen ? {} : { padding: 0, overflow: 'hidden', border: '2px solid var(--primary-color)' }}
+        >
+          {isChatOpen ? <X size={24} /> : <img src="/SolarGirlHR.jpeg" alt="HR Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        </button>
+      </div>
     </div>
   );
 }
