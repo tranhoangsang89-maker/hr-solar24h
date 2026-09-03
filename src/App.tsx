@@ -320,9 +320,10 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
                       type: Type.OBJECT,
                       properties: {
                         employeeId: { type: Type.STRING, description: 'Mã nhân viên (ví dụ: VP-01)' },
-                        dayIndex: { type: Type.INTEGER, description: 'Ngày trong tháng cần cập nhật (ví dụ: 5)' }
+                        dayIndex: { type: Type.INTEGER, description: 'Ngày trong tháng cần cập nhật (ví dụ: 5)' },
+                        month: { type: Type.STRING, description: 'Tháng cần cập nhật, định dạng 2 chữ số (ví dụ: "08", "09"). Cần dựa vào câu hỏi của người dùng hoặc tháng hiện tại.' }
                       },
-                      required: ['employeeId', 'dayIndex']
+                      required: ['employeeId', 'dayIndex', 'month']
                     }
                   }
                 ]
@@ -333,18 +334,20 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
           if (response.functionCalls && response.functionCalls.length > 0) {
             const call = response.functionCalls[0];
             if (call.name === 'update_employee_leave') {
-              const { employeeId, dayIndex } = call.args as any;
+              const { employeeId, dayIndex, month } = call.args as any;
               
-              // Update local state
-              setTimesheetData((prev: any) => {
-                const newTs = { ...prev };
-                if (newTs[employeeId]) {
-                   const newDays = [...newTs[employeeId].days];
-                   newDays[dayIndex - 1] = 'Nghỉ Phép'; // days array is 0-indexed for day 1
-                   newTs[employeeId] = { ...newTs[employeeId], days: newDays };
-                }
-                return newTs;
-              });
+              // Update local state ONLY if it's the currently selected month
+              if (month === selectedMonth) {
+                setTimesheetData((prev: any) => {
+                  const newTs = { ...prev };
+                  if (newTs[employeeId]) {
+                     const newDays = [...newTs[employeeId].days];
+                     newDays[dayIndex - 1] = 'Nghỉ Phép'; // days array is 0-indexed for day 1
+                     newTs[employeeId] = { ...newTs[employeeId], days: newDays };
+                  }
+                  return newTs;
+                });
+              }
 
               // Send to Google Sheets backend
               const scriptUrl = import.meta.env.VITE_APPS_SCRIPT_URL;
@@ -352,8 +355,11 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
                 fetch(scriptUrl, {
                   method: 'POST',
                   mode: 'no-cors',
+                  headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                  },
                   body: JSON.stringify({
-                    month: selectedMonth,
+                    month: month,
                     employeeId,
                     dayIndex,
                     status: 'Nghỉ Phép'
@@ -361,7 +367,7 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
                 }).catch(err => console.error('Error saving to Sheets:', err));
               }
 
-              setChatMessages(prev => [...prev, { sender: 'bot', text: `Dạ em đã cập nhật thành công ngày ${dayIndex} cho nhân viên mã ${employeeId} thành Nghỉ phép trên hệ thống rồi ạ!` }]);
+              setChatMessages(prev => [...prev, { sender: 'bot', text: `Dạ em đã cập nhật thành công ngày ${dayIndex} của tháng ${month} cho nhân viên mã ${employeeId} thành Nghỉ phép trên hệ thống rồi ạ!` }]);
             }
           } else {
             const text = response.text || "Xin lỗi, tôi không thể trả lời lúc này.";
