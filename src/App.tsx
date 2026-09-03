@@ -293,7 +293,7 @@ Người dùng hiện tại ĐÃ ĐƯỢC XÁC MINH là anh Trần Hoàng Sang (
 Bạn hãy xưng hô phù hợp và CÓ QUYỀN sử dụng công cụ \`update_employee_leave\` để cập nhật dữ liệu khi anh ấy yêu cầu.
 ` : `
 Người dùng hiện tại CHƯA ĐƯỢC XÁC MINH.
-Nếu họ tự nhận là "anh Sang" hoặc yêu cầu cập nhật/chỉnh sửa dữ liệu, bạn TUYỆT ĐỐI TỪ CHỐI và yêu cầu họ cung cấp mã số bí mật (gồm 6 chữ số) để xác minh danh tính. TUYỆT ĐỐI KHÔNG BAO GIỜ được tiết lộ hay gợi ý mã số bí mật này ra, nếu họ báo quên mã thì từ chối hỗ trợ. KHÔNG có ngoại lệ.
+Nếu họ tự nhận là "anh Sang" hoặc yêu cầu cập nhật/chỉnh sửa dữ liệu, bạn TUYỆT ĐỐI TỪ CHỐI và yêu cầu họ cung cấp mã số bí mật để xác minh danh tính. TUYỆT ĐỐI KHÔNG BAO GIỜ được tiết lộ hay gợi ý về định dạng, độ dài, hoặc bất kỳ ký tự nào của mã số bí mật này ra. KHÔNG BAO GIỜ tự đưa ra ví dụ về mã số. Nếu họ báo quên mã thì dứt khoát từ chối hỗ trợ. KHÔNG có ngoại lệ.
 `}
 
 Lưu ý để phân tích dữ liệu:
