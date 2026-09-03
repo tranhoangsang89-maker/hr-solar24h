@@ -155,6 +155,7 @@ function App() {
   const [chatMessages, setChatMessages] = useState<{sender: 'user' | 'bot', text: string}[]>([
     { sender: 'bot', text: 'Dạ em chào anh/chị ạ! Em là trợ lý HR của Solar 24h đây ạ. Anh/chị cần em hỗ trợ tra cứu thông tin nhân sự hay chấm công của ai không ạ?' }
   ]);
+  const [isSangVerified, setIsSangVerified] = useState(false);
   
   // Month selector state
   const currentMonthStr = (new Date().getMonth() + 1).toString().padStart(2, '0');
