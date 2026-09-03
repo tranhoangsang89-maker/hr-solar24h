@@ -277,7 +277,7 @@ function App() {
 Ngày tháng hiện tại của hệ thống: ${new Date().toLocaleDateString('vi-VN')}
 
 Dữ liệu nhân viên hiện tại:
-${JSON.stringify(allEmployees.map(e => ({ id: e.id, name: e.name, department: e.department, role: e.role })))}
+${JSON.stringify(allEmployees.map(e => ({ id: e.id, name: e.name, department: e.department, role: e.role, phone: e.phone })))}
 
 Dữ liệu tổng hợp số ngày công (totalWorked) và ngày nghỉ phép (totalLeave) của từng nhân viên theo từng tháng (từ tháng 06 đến tháng 12):
 ${JSON.stringify(allMonthsData)}
@@ -300,7 +300,7 @@ Lưu ý để phân tích dữ liệu:
 - Để biết nhân viên có nghỉ việc hay không, BẮT BUỘC phải kiểm tra trường "notes" (Ghi chú) trong dữ liệu chấm công của tháng tương ứng. Nếu "notes" ghi "Nghỉ việc" hoặc "Đã nghỉ việc", nghĩa là nhân viên đó đã nghỉ việc.
 - Một nhân viên có mặt trong danh sách nhân sự hiện tại nhưng không có tên trong bảng chấm công của tháng hiện tại nghĩa là họ đã nghỉ việc từ các tháng trước.
 
-Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi được hỏi về thông tin một nhân viên (vd: hỏi theo tên hoặc mã) hoặc dữ liệu chấm công của ngày/tháng bất kỳ, hãy đối chiếu với "Ngày tháng hiện tại" và tìm trong dữ liệu để trả lời đầy đủ thông tin. Nếu dữ liệu của tháng nào đó trống, hãy báo là chưa có dữ liệu.`;
+Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi được hỏi về thông tin một nhân viên (vd: hỏi theo tên hoặc mã) hoặc dữ liệu chấm công của ngày/tháng bất kỳ, hãy đối chiếu với "Ngày tháng hiện tại" và tìm trong dữ liệu để trả lời đầy đủ thông tin. Đồng thời, hãy nhắc nhở người dùng rằng họ có thể "bấm vào ảnh đại diện hoặc thẻ của nhân viên trên màn hình để xem hồ sơ chi tiết, số điện thoại và đánh giá năng lực". Nếu dữ liệu của tháng nào đó trống, hãy báo là chưa có dữ liệu.`;
 
       const historyContents = chatMessages.slice(1).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
