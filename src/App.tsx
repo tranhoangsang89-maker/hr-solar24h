@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
-import { Search, Mail, Phone, Users, Building, ChevronRight, Calendar, UserCheck, Heart, Clock, Star, MessageCircle, X, Send } from 'lucide-react';
+import { Search, Mail, Phone, Users, Building, ChevronRight, Calendar, UserCheck, Heart, Clock, Star, X, Send } from 'lucide-react';
 import Papa from 'papaparse';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { hrKnowledgeBase } from './hrKnowledge';
 import './index.css';
 
@@ -303,10 +303,10 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
                     name: 'update_employee_leave',
                     description: 'Cập nhật trạng thái ngày làm việc của nhân viên thành Nghỉ Phép. Chỉ được gọi khi đã xác minh người dùng là anh Sang.',
                     parameters: {
-                      type: 'OBJECT',
+                      type: Type.OBJECT,
                       properties: {
-                        employeeId: { type: 'STRING', description: 'Mã nhân viên (ví dụ: VP-01)' },
-                        dayIndex: { type: 'INTEGER', description: 'Ngày trong tháng cần cập nhật (ví dụ: 5)' }
+                        employeeId: { type: Type.STRING, description: 'Mã nhân viên (ví dụ: VP-01)' },
+                        dayIndex: { type: Type.INTEGER, description: 'Ngày trong tháng cần cập nhật (ví dụ: 5)' }
                       },
                       required: ['employeeId', 'dayIndex']
                     }
