@@ -161,13 +161,18 @@ function App() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
   const [loading, setLoading] = useState(true);
 
-  const departments = ['All', ...Array.from(new Set(allEmployees.map(e => e.department ? e.department.trim() : ''))).filter(d => d !== '')];
+  const isEmployeeActive = (empId: string) => {
+    if (Object.keys(timesheetData).length === 0) return true;
+    return !!timesheetData[empId];
+  };
+
+  const departments = ['All', ...Array.from(new Set(allEmployees.filter(e => isEmployeeActive(e.id)).map(e => e.department ? e.department.trim() : ''))).filter(d => d !== '')];
 
   // Prepare Chart Data
   const COLORS = ['#38bdf8', '#f472b6', '#fbbf24', '#34d399', '#a78bfa'];
   const pieData = departments.filter(d => d !== 'All').map(dept => ({
     name: dept,
-    value: allEmployees.filter(e => e.department && e.department.trim() === dept).length
+    value: allEmployees.filter(e => isEmployeeActive(e.id) && e.department && e.department.trim() === dept).length
   }));
 
   const calculateAttendance = () => {
@@ -186,7 +191,7 @@ function App() {
 
   const getLeaveDetails = () => {
     const details: any[] = [];
-    allEmployees.forEach(emp => {
+    allEmployees.filter(e => isEmployeeActive(e.id)).forEach(emp => {
       const ts = timesheetData[emp.id];
       if (ts && ts.totalLeave && parseFloat(ts.totalLeave.toString().replace(',', '.')) > 0) {
         const leaveDates: number[] = [];
@@ -283,6 +288,10 @@ Chú ý đặc biệt về Bảo mật:
 Nếu người dùng yêu cầu CẬP NHẬT hoặc CHỈNH SỬA dữ liệu (ví dụ: cập nhật nghỉ phép):
 - NẾU BẠN CHƯA XÁC MINH ĐƯỢC LÀ ANH SANG (chưa có mã bí mật): TUYỆT ĐỐI TỪ CHỐI và yêu cầu mã bí mật.
 - NẾU ĐÃ XÁC MINH LÀ ANH SANG: Hãy sử dụng công cụ (tool) \`update_employee_leave\` để thực hiện lệnh.
+
+Lưu ý để phân tích dữ liệu:
+- Để biết nhân viên có nghỉ việc hay không, BẮT BUỘC phải kiểm tra trường "notes" (Ghi chú) trong dữ liệu chấm công của tháng tương ứng. Nếu "notes" ghi "Nghỉ việc" hoặc "Đã nghỉ việc", nghĩa là nhân viên đó đã nghỉ việc.
+- Một nhân viên có mặt trong danh sách nhân sự hiện tại nhưng không có tên trong bảng chấm công của tháng hiện tại nghĩa là họ đã nghỉ việc từ các tháng trước.
 
 Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi được hỏi về thông tin một nhân viên (vd: hỏi theo tên hoặc mã) hoặc dữ liệu chấm công của ngày/tháng bất kỳ, hãy đối chiếu với "Ngày tháng hiện tại" và tìm trong dữ liệu để trả lời đầy đủ thông tin. Nếu dữ liệu của tháng nào đó trống, hãy báo là chưa có dữ liệu.`;
 
@@ -441,7 +450,8 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
                   if (!id) return;
                   const totalWorked = parts[35] || "0";
                   const totalLeave = parts[36] || "0";
-                  tsData[id] = { totalWorked, totalLeave };
+                  const notes = parts[37] || "";
+                  tsData[id] = { totalWorked, totalLeave, notes };
                 });
                 allData[month] = tsData;
               }
@@ -506,7 +516,7 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
 
     // Only include employees who are in the current month's timesheet (if data is loaded)
     if (Object.keys(timesheetData).length > 0) {
-      filtered = filtered.filter(e => timesheetData[e.id]);
+      filtered = filtered.filter(e => timesheetData[e.id] && isEmployeeActive(e.id));
     }
 
     if (filterDept !== 'All') {
@@ -617,7 +627,7 @@ Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi đư
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ type: "spring", stiffness: 100, delay: 0.2 }}
                     >
-                      {allEmployees.length}
+                      {allEmployees.filter(e => isEmployeeActive(e.id)).length}
                     </motion.div>
                     <div className="stat-label">Tổng Nhân Sự</div>
                   </div>
