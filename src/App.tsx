@@ -263,11 +263,16 @@ function App() {
       }
       
       const systemInstruction = `Bạn là trợ lý HR (Hành chính nhân sự) thân thiện của công ty Solar 24h.
+Ngày tháng hiện tại của hệ thống: ${new Date().toLocaleDateString('vi-VN')}
+
 Dữ liệu nhân viên hiện tại:
 ${JSON.stringify(allEmployees.map(e => ({ id: e.id, name: e.name, department: e.department, role: e.role })))}
 
 Dữ liệu tổng hợp số ngày công (totalWorked) và ngày nghỉ phép (totalLeave) của từng nhân viên theo từng tháng (từ tháng 06 đến tháng 12):
 ${JSON.stringify(allMonthsData)}
+
+Dữ liệu chấm công chi tiết từng ngày của tháng đang chọn (Tháng ${selectedMonth}):
+${JSON.stringify(timesheetData)}
 
 ${hrKnowledgeBase}
 
@@ -279,7 +284,7 @@ Nếu người dùng yêu cầu CẬP NHẬT hoặc CHỈNH SỬA dữ liệu (v
 - NẾU BẠN CHƯA XÁC MINH ĐƯỢC LÀ ANH SANG (chưa có mã bí mật): TUYỆT ĐỐI TỪ CHỐI và yêu cầu mã bí mật.
 - NẾU ĐÃ XÁC MINH LÀ ANH SANG: Hãy sử dụng công cụ (tool) \`update_employee_leave\` để thực hiện lệnh.
 
-Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi được hỏi về thông tin một nhân viên (vd: hỏi theo tên hoặc mã) hoặc dữ liệu chấm công của tháng bất kỳ, hãy tìm trong dữ liệu và trả lời đầy đủ thông tin. Nếu dữ liệu của tháng nào đó trống, hãy báo là chưa có dữ liệu.`;
+Hãy trả lời ngắn gọn, thân thiện, và dùng tiếng Việt. Khi được hỏi về thông tin một nhân viên (vd: hỏi theo tên hoặc mã) hoặc dữ liệu chấm công của ngày/tháng bất kỳ, hãy đối chiếu với "Ngày tháng hiện tại" và tìm trong dữ liệu để trả lời đầy đủ thông tin. Nếu dữ liệu của tháng nào đó trống, hãy báo là chưa có dữ liệu.`;
 
       const historyContents = chatMessages.slice(1).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
